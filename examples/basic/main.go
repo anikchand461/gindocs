@@ -1,4 +1,4 @@
-// Command basic shows gin-swagger-ui on a small Gin API.
+// Command basic shows gin-autodocs on a small Gin API.
 //
 //	go run ./examples/basic
 //
@@ -8,7 +8,7 @@ package main
 import (
 	"net/http"
 
-	gindocs "github.com/anikchand461/gin-swagger-ui"
+	gindocs "github.com/anikchand461/gin-autodocs"
 	"github.com/gin-gonic/gin"
 )
 

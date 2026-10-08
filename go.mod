@@ -1,4 +1,4 @@
-module github.com/anikchand461/gin-swagger-ui
+module github.com/anikchand461/gin-autodocs
 
 go 1.25.0
 
@@ -35,3 +35,6 @@ require (
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 )
+
+// v0.1.0 declared the wrong module path (gin-swagger-ui) and cannot be used.
+retract v0.1.0

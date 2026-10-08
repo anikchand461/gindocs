@@ -1,4 +1,4 @@
-# gin-swagger-ui
+# gin-autodocs
 
 Automatic Swagger/OpenAPI documentation for [Gin](https://github.com/gin-gonic/gin) with minimal configuration.
 
@@ -26,7 +26,7 @@ func GetUser(c *gin.Context) { ... }
 
 Routes and comments drift apart, and new routes don't appear until someone writes their comments.
 
-### With gin-swagger-ui
+### With gin-autodocs
 
 ```go
 r.GET("/users", GetUsers)
@@ -35,12 +35,12 @@ r.GET("/users/:id", GetUser)
 gindocs.New(r).Serve("/docs")
 ```
 
-Gin already knows every registered route, so gin-swagger-ui reads them from `router.Routes()` and builds the OpenAPI document from that list.
+Gin already knows every registered route, so gin-autodocs reads them from `router.Routes()` and builds the OpenAPI document from that list.
 
 ## Install
 
 ```bash
-go get github.com/anikchand461/gin-swagger-ui
+go get github.com/anikchand461/gin-autodocs
 ```
 
 ## Usage
@@ -51,7 +51,7 @@ package main
 import (
 	"net/http"
 
-	gindocs "github.com/anikchand461/gin-swagger-ui"
+	gindocs "github.com/anikchand461/gin-autodocs"
 	"github.com/gin-gonic/gin"
 )
 

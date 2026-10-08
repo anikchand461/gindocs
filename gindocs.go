@@ -16,8 +16,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/anikchand461/gin-swagger-ui/internal/openapi"
-	"github.com/anikchand461/gin-swagger-ui/internal/ui"
+	"github.com/anikchand461/gin-autodocs/internal/openapi"
+	"github.com/anikchand461/gin-autodocs/internal/ui"
 	"github.com/gin-gonic/gin"
 )
 
