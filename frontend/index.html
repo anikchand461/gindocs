@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gindocs: automatic API docs for Gin</title>
+  <meta name="description" content="Register your Gin routes, add one line, and get interactive OpenAPI docs at /docs. Zero annotations, no code generation.">
+  <meta property="og:title" content="gindocs: automatic API docs for Gin">
+  <meta property="og:description" content="Zero-annotation OpenAPI docs and an interactive docs UI for Go's Gin framework.">
+  <meta property="og:image" content="assets/logo-640.png">
+  <meta name="theme-color" content="#ffd52e">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="gindocs home">
+        <img src="assets/favicon-64.png" alt="" width="36" height="36">
+        <span>gindocs</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="#why">Why</a>
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#quickstart">Quickstart</a>
+      </nav>
+      <a class="btn btn-dark btn-sm" href="https://github.com/anikchand461/gindocs" target="_blank" rel="noopener">
+        <svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="top">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="dot"></span> Go · Gin · OpenAPI 3.0.3</p>
+          <h1>API docs for Gin.<br><span class="hl">Zero annotations.</span></h1>
+          <p class="lede">
+            Register your routes like always, add <strong>one line</strong>, and get interactive docs at
+            <code>/docs</code>, generated live from your router. No comments, no <code>swag init</code>,
+            no generated files to commit.
+          </p>
+
+          <div class="install">
+            <code><span class="prompt">$</span> go get github.com/anikchand461/gindocs</code>
+            <button class="copy" type="button" data-copy="go get github.com/anikchand461/gindocs">Copy</button>
+          </div>
+
+          <div class="cta-row">
+            <a class="btn btn-lemon" href="#quickstart">Get started →</a>
+            <a class="btn btn-light" href="https://github.com/anikchand461/gindocs" target="_blank" rel="noopener">Star on GitHub</a>
+          </div>
+
+          <ul class="stats" aria-label="At a glance">
+            <li><b>1</b> line to add</li>
+            <li><b>0</b> annotations</li>
+            <li><b>~50 KB</b> embedded UI</li>
+            <li><b>0</b> CDN calls</li>
+          </ul>
+        </div>
+
+        <div class="hero-art">
+          <div class="blob" aria-hidden="true"></div>
+          <img class="logo-big" src="assets/logo-640.png" width="460" height="460"
+               alt="The gindocs mascot: a blue Gin glass gopher with a lemon slice, reading a Swagger book listing GET, POST, PUT and DELETE routes">
+          <span class="sticker s-get" aria-hidden="true">GET /users</span>
+          <span class="sticker s-del" aria-hidden="true">DELETE /users/:id</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ WHY ============ -->
+    <section class="section" id="why">
+      <div class="wrap">
+        <p class="kicker">The problem</p>
+        <h2>Stop writing comments<br>to document your routes.</h2>
+        <p class="sub">
+          FastAPI gives Python developers <code>/docs</code> for free. Gin developers usually get a block of
+          annotations above every handler, and a docs package to regenerate every time something changes.
+        </p>
+
+        <div class="compare">
+          <article class="card code-card bad">
+            <header class="card-head">
+              <span class="tag tag-bad">✗ Before</span>
+              <span class="file">handlers.go · swaggo</span>
+            </header>
+<pre><code><span class="c">// GetUser godoc</span>
+<span class="c">// @Summary      Get a user</span>
+<span class="c">// @Description  Get a user by ID</span>
+<span class="c">// @Tags         users</span>
+<span class="c">// @Produce      json</span>
+<span class="c">// @Param        id  path  string  true  "User ID"</span>
+<span class="c">// @Success      200 {object} User</span>
+<span class="c">// @Router       /users/{id} [get]</span>
+<span class="k">func</span> <span class="f">GetUser</span>(c *gin.Context) { ... }
+
+<span class="c">// ...repeat for every handler, then:</span>
+<span class="p">$</span> swag init</code></pre>
+          </article>
+
+          <article class="card code-card good">
+            <header class="card-head">
+              <span class="tag tag-good">✓ With gindocs</span>
+              <span class="file">main.go</span>
+            </header>
+<pre><code>r.<span class="f">GET</span>(<span class="s">"/users"</span>, GetUsers)
+r.<span class="f">GET</span>(<span class="s">"/users/:id"</span>, GetUser)
+
+gindocs.<span class="f">New</span>(r).<span class="f">Serve</span>(<span class="s">"/docs"</span>)
+
+<span class="c">// That's it. Open /docs.</span></code></pre>
+            <ul class="checks">
+              <li>Docs can't drift: routes are read live</li>
+              <li>New routes show up instantly</li>
+              <li>Nothing to generate or commit</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW ============ -->
+    <section class="section alt" id="how">
+      <div class="wrap">
+        <p class="kicker">How it works</p>
+        <h2>Gin already knows your routes.</h2>
+        <p class="sub">gindocs asks it, then builds a standard OpenAPI document and an interactive page on top.</p>
+
+        <ol class="steps">
+          <li class="card step">
+            <span class="num">1</span>
+            <h3>Register routes</h3>
+            <p>Exactly like you do today. Groups, middleware and path params all work.</p>
+            <code class="snippet">r.GET("/users/:id", GetUser)</code>
+          </li>
+          <li class="card step">
+            <span class="num">2</span>
+            <h3>Add one line</h3>
+            <p>gindocs reads <code>router.Routes()</code> and generates the spec on every request.</p>
+            <code class="snippet">gindocs.New(r).Serve("/docs")</code>
+          </li>
+          <li class="card step">
+            <span class="num">3</span>
+            <h3>Open /docs</h3>
+            <p>Browse endpoints, authorize, and send real requests from the browser.</p>
+            <code class="snippet">localhost:8080/docs</code>
+          </li>
+        </ol>
+
+        <div class="flow" aria-label="Gin engine to router.Routes() to OpenAPI 3.0.3, served at /openapi.json and /docs">
+          <span class="node">Gin engine</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="node">router.Routes()</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="node node-blue">OpenAPI 3.0.3</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="node-pair">
+            <span class="node node-lemon">/docs</span>
+            <span class="node">/openapi.json</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section class="section" id="features">
+      <div class="wrap">
+        <p class="kicker">Features</p>
+        <h2>Everything you expect from <code>/docs</code>.</h2>
+
+        <div class="features">
+          <article class="card feature">
+            <span class="badge b-get">AUTO</span>
+            <h3>Zero annotations</h3>
+            <p>Paths, path parameters, tags from the URL, summaries and operationIds from handler names: <code>GetUserByID</code> → “Get User By ID”.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-post">TYPED</span>
+            <h3>Detail when you want it</h3>
+            <p>Add bodies, queries and responses with the structs you already bind. <code>binding</code> tags become required fields, enums and limits.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-put">FORMS</span>
+            <h3>Forms &amp; file uploads</h3>
+            <p><code>*multipart.FileHeader</code> fields become file pickers. Multipart and URL-encoded forms are sent exactly like your clients would.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-del">AUTH</span>
+            <h3>Authorize built in</h3>
+            <p>Bearer, Basic and API-key auth with one call each. Mark open endpoints with <code>.Public()</code>.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-get">TRY IT</span>
+            <h3>A real console</h3>
+            <p>Pre-filled JSON with code-editor brackets and indentation, typed inputs, live cURL, status, timing, headers and download.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-post">EMBED</span>
+            <h3>Offline &amp; tiny</h3>
+            <p>The ~50 KB UI ships inside your binary with <code>go:embed</code>. No CDN, no frontend build, no extra service.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-put">UI</span>
+            <h3>Light, dark &amp; mobile</h3>
+            <p>Follows the system theme with a toggle to override, and a slide-out route drawer on phones.</p>
+          </article>
+          <article class="card feature">
+            <span class="badge b-del">SPEC</span>
+            <h3>Standard OpenAPI</h3>
+            <p><code>/openapi.json</code> is plain OpenAPI 3.0.3. Import it into Postman, Insomnia, Swagger UI or a client generator.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PREVIEW ============ -->
+    <section class="section alt" id="preview">
+      <div class="wrap">
+        <p class="kicker">The docs UI</p>
+        <h2>Not another Swagger skin.</h2>
+        <p class="sub">A purpose-built, two-pane docs page that's fast to scan and fun to use.</p>
+
+        <figure class="window" aria-label="Illustration of the gindocs docs page">
+          <div class="window-bar">
+            <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="url">localhost:8080/docs</span>
+          </div>
+          <div class="window-body">
+            <aside class="mock-side" aria-hidden="true">
+              <div class="mock-search">Filter routes <kbd>/</kbd></div>
+              <p class="mock-group">USERS</p>
+              <p class="mock-route"><b class="m-get">GET</b>/users</p>
+              <p class="mock-route active"><b class="m-post">POST</b>/users</p>
+              <p class="mock-route"><b class="m-get">GET</b>/users/<i>{id}</i></p>
+              <p class="mock-route"><b class="m-put">PUT</b>/users/<i>{id}</i></p>
+              <p class="mock-route"><b class="m-del">DELETE</b>/users/<i>{id}</i></p>
+              <p class="mock-group">SCHEMAS</p>
+              <p class="mock-route"><b class="m-schema">{ }</b>User</p>
+            </aside>
+            <div class="mock-main" aria-hidden="true">
+              <p class="mock-title"><b class="m-post">POST</b> /users <span class="mock-lock">🔒 Authorized</span></p>
+              <p class="mock-summary">Create a user</p>
+              <p class="mock-label">REQUEST BODY · application/json</p>
+<pre class="mock-code">{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com"
+}</pre>
+              <div class="mock-actions"><span class="mock-send">Send request</span><span class="mock-hint">⌘ + Enter</span></div>
+              <p class="mock-status"><b>201 Created</b> · 12 ms</p>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ QUICKSTART ============ -->
+    <section class="section" id="quickstart">
+      <div class="wrap">
+        <p class="kicker">Quickstart</p>
+        <h2>From zero to <code>/docs</code> in a minute.</h2>
+
+        <div class="tabs" data-tabs>
+          <div class="tab-list" role="tablist" aria-label="Examples">
+            <button class="tab" role="tab" aria-selected="true" aria-controls="tab-basic" id="t-basic">main.go</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-typed" id="t-typed" tabindex="-1">With types</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-upload" id="t-upload" tabindex="-1">File uploads</button>
+          </div>
+
+          <div class="card code-card panel" role="tabpanel" id="tab-basic" aria-labelledby="t-basic">
+            <button class="copy copy-float" type="button" data-copy-from="#code-basic">Copy</button>
+<pre><code id="code-basic"><span class="k">package</span> main
+
+<span class="k">import</span> (
+	<span class="s">"net/http"</span>
+
+	<span class="s">"github.com/anikchand461/gindocs"</span>
+	<span class="s">"github.com/gin-gonic/gin"</span>
+)
+
+<span class="k">func</span> <span class="f">main</span>() {
+	r := gin.<span class="f">Default</span>()
+
+	r.<span class="f">GET</span>(<span class="s">"/users/:id"</span>, <span class="k">func</span>(c *gin.Context) {
+		c.<span class="f">JSON</span>(http.StatusOK, gin.H{<span class="s">"id"</span>: c.<span class="f">Param</span>(<span class="s">"id"</span>)})
+	})
+
+	gindocs.<span class="f">New</span>(r).<span class="f">Serve</span>(<span class="s">"/docs"</span>) <span class="c">// ← the only new line</span>
+
+	r.<span class="f">Run</span>(<span class="s">":8080"</span>)
+}</code></pre>
+          </div>
+
+          <div class="card code-card panel" role="tabpanel" id="tab-typed" aria-labelledby="t-typed" hidden>
+            <button class="copy copy-float" type="button" data-copy-from="#code-typed">Copy</button>
+<pre><code id="code-typed">docs := gindocs.<span class="f">New</span>(r)
+docs.Title = <span class="s">"Users API"</span>
+docs.<span class="f">BearerAuth</span>()
+
+docs.<span class="f">Route</span>(<span class="s">"POST /users"</span>).
+	<span class="f">Summary</span>(<span class="s">"Create a user"</span>).
+	<span class="f">Body</span>(CreateUser{}).      <span class="c">// the struct you pass to ShouldBindJSON</span>
+	<span class="f">Response</span>(<span class="n">201</span>, User{}).
+	<span class="f">Response</span>(<span class="n">400</span>, APIError{})
+
+docs.<span class="f">Route</span>(<span class="s">"GET /users"</span>).
+	<span class="f">Query</span>(ListUsers{})        <span class="c">// `form` tags → query parameters</span>
+
+docs.<span class="f">Route</span>(<span class="s">"GET /health"</span>).<span class="f">Public</span>()
+
+docs.<span class="f">Serve</span>(<span class="s">"/docs"</span>)</code></pre>
+          </div>
+
+          <div class="card code-card panel" role="tabpanel" id="tab-upload" aria-labelledby="t-upload" hidden>
+            <button class="copy copy-float" type="button" data-copy-from="#code-upload">Copy</button>
+<pre><code id="code-upload"><span class="k">type</span> AvatarForm <span class="k">struct</span> {
+	Avatar  *multipart.FileHeader <span class="s">`form:"avatar" binding:"required"`</span>
+	Caption <span class="k">string</span>                <span class="s">`form:"caption" binding:"max=80"`</span>
+}
+
+<span class="c">// A file field makes it multipart/form-data,</span>
+<span class="c">// and Try it shows a file picker.</span>
+docs.<span class="f">Route</span>(<span class="s">"POST /users/:id/avatar"</span>).<span class="f">Form</span>(AvatarForm{})</code></pre>
+          </div>
+        </div>
+
+        <div class="tags-demo">
+          <div class="card code-card">
+            <header class="card-head"><span class="file">your struct</span></header>
+<pre><code><span class="k">type</span> CreateUser <span class="k">struct</span> {
+	Name  <span class="k">string</span> <span class="s">`json:"name" binding:"required,min=2"`</span>
+	Email <span class="k">string</span> <span class="s">`json:"email" binding:"required,email"`</span>
+	Role  <span class="k">string</span> <span class="s">`json:"role" binding:"oneof=admin member"`</span>
+}</code></pre>
+          </div>
+          <span class="tags-arrow" aria-hidden="true">→</span>
+          <div class="card code-card">
+            <header class="card-head"><span class="file">the schema in /docs</span></header>
+<pre><code><span class="b">name</span>   string  <span class="req">required</span>  min length 2
+<span class="b">email</span>  string (email)  <span class="req">required</span>
+<span class="b">role</span>   string  one of: "admin", "member"</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="section">
+      <div class="wrap">
+        <div class="card cta">
+          <img src="assets/logo-640.png" alt="" width="150" height="150" loading="lazy">
+          <div>
+            <h2>Ship docs with your next commit.</h2>
+            <p>One import, one line, and your Gin API documents itself.</p>
+            <div class="install install-dark">
+              <code><span class="prompt">$</span> go get github.com/anikchand461/gindocs</code>
+              <button class="copy" type="button" data-copy="go get github.com/anikchand461/gindocs">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <a class="brand" href="#top">
+        <img src="assets/favicon-64.png" alt="" width="28" height="28">
+        <span>gindocs</span>
+      </a>
+      <nav class="footer-links" aria-label="Links">
+        <a href="https://github.com/anikchand461/gindocs" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/anikchand461/gindocs" target="_blank" rel="noopener">pkg.go.dev</a>
+        <a href="https://github.com/anikchand461/gindocs#readme" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/anikchand461/gindocs/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      </nav>
+      <p class="fine">Made for Gophers who'd rather write handlers than comments.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
