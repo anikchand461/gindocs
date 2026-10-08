@@ -23,6 +23,30 @@
     });
   });
 
+  // Mobile menu: the ☰ button opens the section links below the header.
+  const menuBtn = document.querySelector(".menu-btn");
+  const menu = document.getElementById("site-menu");
+  const wide = matchMedia("(min-width: 901px)");
+  const setMenu = (open, returnFocus) => {
+    document.body.classList.toggle("menu-open", open);
+    menuBtn.setAttribute("aria-expanded", String(open));
+    menuBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    if (open) menu.querySelector("a").focus();
+    else if (returnFocus) menuBtn.focus();
+  };
+  const isOpen = () => document.body.classList.contains("menu-open");
+  menuBtn.addEventListener("click", () => setMenu(!isOpen(), true));
+  menu.addEventListener("click", (e) => {
+    if (e.target.closest("a") && isOpen()) setMenu(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen()) setMenu(false, true);
+  });
+  document.addEventListener("click", (e) => {
+    if (isOpen() && !e.target.closest(".nav")) setMenu(false);
+  });
+  wide.addEventListener("change", () => { if (wide.matches) setMenu(false); });
+
   // Tabs with arrow-key navigation (WAI-ARIA tabs pattern).
   document.querySelectorAll("[data-tabs]").forEach((root) => {
     const tabs = [...root.querySelectorAll('[role="tab"]')];
