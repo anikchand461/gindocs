@@ -650,12 +650,7 @@
       bodyEl = h("textarea", {
         rows: Math.min(16, Math.max(5, form.body.split("\n").length + 1)),
         spellcheck: "false",
-        // Only shown when the route documents no body (otherwise the box
-        // starts with the schema example).
-        placeholder: "No request body is documented for this route.\n" +
-          "Type JSON here to send one anyway.\n\n" +
-          "To pre-fill this box, declare the body in Go:\n" +
-          "  docs.Route(\"" + o.method.toUpperCase() + " " + o.path + "\").Body(YourStruct{})",
+        placeholder: '{\n  "name": "Ada"\n}',
         oninput: () => { form.body = bodyEl.value; },
       });
       bodyEl.value = form.body;
@@ -721,7 +716,7 @@
         el))),
     bodyEl && h("div", { class: "field" },
       h("div", { class: "field-row" },
-        h("span", { class: "field-name" }, "Body", h("small", null, content ? ctype : "not documented")),
+        h("span", { class: "field-name" }, "Body", h("small", null, ctype + (content ? "" : " · optional"))),
         resetBtn),
       bodyEl,
       bodyErr),
