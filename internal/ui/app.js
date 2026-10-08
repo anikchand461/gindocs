@@ -1,4 +1,4 @@
-// gin-autodocs docs page: renders the OpenAPI document served at
+// gindocs docs page: renders the OpenAPI document served at
 // data-spec and lets you send requests to the documented routes.
 (() => {
   "use strict";

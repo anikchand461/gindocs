@@ -1,4 +1,4 @@
-// Command basic shows gin-autodocs on a small Gin API.
+// Command basic shows gindocs on a small Gin API.
 //
 //	go run ./examples/basic
 //
@@ -8,7 +8,7 @@ package main
 import (
 	"net/http"
 
-	gindocs "github.com/anikchand461/gin-autodocs"
+	"github.com/anikchand461/gindocs"
 	"github.com/gin-gonic/gin"
 )
 

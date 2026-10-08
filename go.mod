@@ -1,4 +1,4 @@
-module github.com/anikchand461/gin-autodocs
+module github.com/anikchand461/gindocs
 
 go 1.25.0
 
@@ -36,5 +36,6 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-// v0.1.0 declared the wrong module path (gin-swagger-ui) and cannot be used.
-retract v0.1.0
+// These tags were published under earlier module paths
+// (gin-swagger-ui, gin-autodocs) and cannot be used as gindocs.
+retract [v0.1.0, v0.1.2]

@@ -1,4 +1,4 @@
-// Command full shows gin-autodocs with optional request/response types and
+// Command full shows gindocs with optional request/response types and
 // bearer authentication on a small in-memory users API.
 //
 //	go run ./examples/full
@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	gindocs "github.com/anikchand461/gin-autodocs"
+	"github.com/anikchand461/gindocs"
 	"github.com/gin-gonic/gin"
 )
 

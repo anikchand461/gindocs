@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/anikchand461/gin-autodocs/internal/openapi"
+	"github.com/anikchand461/gindocs/internal/openapi"
 )
 
 // Route adds optional documentation to one route. Every route is documented
