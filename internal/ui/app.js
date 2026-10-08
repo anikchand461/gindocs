@@ -563,6 +563,137 @@
         : h("p", { class: "muted" }, "No parameters."));
   }
 
+  // ---------- JSON body editing ----------
+
+  const PAIRS = { "{": "}", "[": "]", '"': '"' };
+  const INDENT = "  ";
+
+  // insertText replaces the selection with text through the browser's editing
+  // commands, so ⌘Z/Ctrl+Z still works, then moves the caret back by `back`.
+  function insertText(ta, text, back = 0) {
+    if (!document.execCommand("insertText", false, text)) {
+      ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    if (back) {
+      const p = ta.selectionStart - back;
+      ta.setSelectionRange(p, p);
+    }
+  }
+
+  // jsonKeys gives a textarea code-editor behavior for JSON: auto-closed
+  // brackets and quotes, typing over closers, smart Enter, and Tab indent.
+  function jsonKeys(e) {
+    if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const ta = e.currentTarget;
+    const v = ta.value;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const before = v[start - 1] || "";
+    const after = v[end] || "";
+    const lineStart = v.lastIndexOf("\n", start - 1) + 1;
+    const lineHead = v.slice(lineStart, start); // line text left of the caret
+    const indent = v.slice(lineStart).match(/^ */)[0];
+
+    switch (e.key) {
+      case "}":
+      case "]":
+      case '"': {
+        // Type over a closer that is already there.
+        if (start === end && after === e.key && before !== "\\") {
+          e.preventDefault();
+          ta.setSelectionRange(start + 1, start + 1);
+          return;
+        }
+        if (e.key !== '"') {
+          // A closer on an otherwise blank line moves out one level.
+          if (start === end && lineHead.trim() === "" && lineHead.length >= INDENT.length) {
+            e.preventDefault();
+            ta.setSelectionRange(lineStart, start);
+            insertText(ta, lineHead.slice(INDENT.length) + e.key);
+          }
+          return;
+        }
+        // An opening quote: pair it unless it ends a word or is escaped.
+        if (start === end && (/[\w\\]/.test(before) || /\w/.test(after))) return;
+        e.preventDefault();
+        insertText(ta, '"' + v.slice(start, end) + '"', start === end ? 1 : 0);
+        return;
+      }
+
+      case "{":
+      case "[": {
+        if (start === end && !/^[\s,\]}:]?$/.test(after)) return;
+        e.preventDefault();
+        insertText(ta, e.key + v.slice(start, end) + PAIRS[e.key], start === end ? 1 : 0);
+        return;
+      }
+
+      case "Backspace": {
+        if (start !== end) return;
+        if (PAIRS[before] && PAIRS[before] === after) {
+          // Delete an empty pair together: {|} -> |
+          ta.setSelectionRange(start - 1, start + 1);
+        } else if (lineHead.length > 0 && lineHead.trim() === "") {
+          // In leading spaces, delete back to the previous indent stop.
+          ta.setSelectionRange(start - (lineHead.length % INDENT.length || INDENT.length), start);
+        }
+        return; // the browser deletes the selection, keeping undo
+      }
+
+      case "Enter": {
+        if (e.shiftKey) return;
+        e.preventDefault();
+        const opener = lineHead.trimEnd().slice(-1);
+        if ((opener === "{" || opener === "[") && v.slice(end).trimStart()[0] === PAIRS[opener] &&
+            v.slice(end).match(/^\s*/)[0].indexOf("\n") < 0) {
+          // Between a pair: open a new, indented line and push the closer down.
+          const tail = "\n" + indent;
+          ta.setSelectionRange(start, end + v.slice(end).match(/^ */)[0].length);
+          insertText(ta, "\n" + indent + INDENT + tail, tail.length);
+        } else if (opener === "{" || opener === "[") {
+          insertText(ta, "\n" + indent + INDENT);
+        } else {
+          insertText(ta, "\n" + indent);
+        }
+        return;
+      }
+
+      case "Tab": {
+        e.preventDefault();
+        const multiline = v.slice(start, end).includes("\n");
+        if (!multiline && !e.shiftKey) {
+          insertText(ta, INDENT);
+          return;
+        }
+        // Indent or outdent every selected line.
+        const last = end > start && v[end - 1] === "\n" ? end - 1 : end;
+        let blockEnd = v.indexOf("\n", last);
+        if (blockEnd < 0) blockEnd = v.length;
+        const block = v.slice(lineStart, blockEnd);
+        const out = block.split("\n")
+          .map((l) => (e.shiftKey ? l.replace(/^ {1,2}/, "") : INDENT + l))
+          .join("\n");
+        if (out === block) return;
+        ta.setSelectionRange(lineStart, blockEnd);
+        insertText(ta, out);
+        if (multiline) {
+          ta.setSelectionRange(lineStart, lineStart + out.length);
+        } else {
+          const p = Math.max(lineStart, start - (block.length - out.length));
+          ta.setSelectionRange(p, p);
+        }
+        return;
+      }
+
+      case "Escape":
+        // Tab indents inside the editor; Escape hands focus back so the
+        // keyboard can move on.
+        ta.blur();
+        return;
+    }
+  }
+
   // ---------- try it ----------
 
   function paramControl(p, form) {
@@ -652,6 +783,7 @@
         spellcheck: "false",
         placeholder: '{\n  "name": "Ada"\n}',
         oninput: () => { form.body = bodyEl.value; },
+        onkeydown: ctype.includes("json") ? jsonKeys : null,
       });
       bodyEl.value = form.body;
       bodyErr = h("div", { class: "field-error", role: "alert" });
