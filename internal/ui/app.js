@@ -51,6 +51,8 @@
   const ICONS = {
     lock: "M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5z",
     unlock: "M7 11V7a5 5 0 0 1 9.6-2M5 11h14v10H5z",
+    sun: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
+    moon: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
   };
 
   function icon(name) {
@@ -383,12 +385,16 @@
     if (info.license) {
       links.push(info.license.url ? extLink(info.license.url, info.license.name) : h("span", { class: "chip" }, info.license.name));
     }
-    set(document.getElementById("meta"),
+    // The chips sit in the header on wide screens and in the drawer on phones.
+    const chips = () => [
       info.version && h("span", { class: "chip" }, "v" + info.version),
       spec.openapi && h("span", { class: "chip" }, "OpenAPI " + spec.openapi),
       h("span", { class: "chip" }, state.ops.length + (state.ops.length === 1 ? " endpoint" : " endpoints")),
       h("a", { class: "chip link", href: specURL, target: "_blank" }, specURL),
-      links);
+      links.map((l) => l.cloneNode(true)),
+    ];
+    set(document.getElementById("meta"), chips());
+    set(document.getElementById("drawer-meta"), chips());
 
     const servers = spec.servers || [];
     let serverSelect = null;
@@ -405,8 +411,9 @@
       Object.keys(schemes()).length > 0 && h("button", {
         type: "button",
         class: "btn authorize" + (anyAuth ? " on" : ""),
+        "aria-label": anyAuth ? "Authorized" : "Authorize",
         onclick: openAuth,
-      }, icon(anyAuth ? "lock" : "unlock"), anyAuth ? "Authorized" : "Authorize"));
+      }, icon(anyAuth ? "lock" : "unlock"), h("span", { class: "label" }, anyAuth ? "Authorized" : "Authorize")));
 
     set(document.getElementById("info"), md(info.description));
   }
@@ -781,6 +788,75 @@
           h("tr", null, h("td", null, h("code", null, k)), h("td", null, v))))));
   }
 
+  // ---------- theme & mobile drawer ----------
+
+  const THEME_KEY = "gindocs.theme";
+  const root = document.documentElement;
+  const systemDark = matchMedia("(prefers-color-scheme: dark)");
+  const phone = matchMedia("(max-width: 760px)");
+  const themeBtn = document.getElementById("theme");
+  const menuBtn = document.getElementById("menu");
+
+  const isDark = () => (root.dataset.theme ? root.dataset.theme === "dark" : systemDark.matches);
+
+  function renderThemeButton() {
+    const label = isDark() ? "Switch to light theme" : "Switch to dark theme";
+    themeBtn.replaceChildren(icon(isDark() ? "sun" : "moon"));
+    themeBtn.setAttribute("aria-label", label);
+    themeBtn.title = label;
+  }
+
+  // toggleTheme flips the theme. Choosing what the system already uses
+  // clears the override, so the page follows the system again.
+  function toggleTheme() {
+    const next = isDark() ? "light" : "dark";
+    const followSystem = next === (systemDark.matches ? "dark" : "light");
+    try {
+      if (followSystem) localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, next);
+    } catch { /* storage unavailable: the choice lasts until reload */ }
+    if (followSystem) delete root.dataset.theme;
+    else root.dataset.theme = next;
+    renderThemeButton();
+  }
+
+  const navOpen = () => document.body.classList.contains("nav-open");
+
+  function setNav(open, returnFocus) {
+    document.body.classList.toggle("nav-open", open);
+    menuBtn.setAttribute("aria-expanded", String(open));
+    if (open) document.getElementById("close-nav").focus();
+    else if (returnFocus) menuBtn.focus();
+  }
+
+  function setupChrome() {
+    renderThemeButton();
+    themeBtn.addEventListener("click", toggleTheme);
+    systemDark.addEventListener("change", renderThemeButton);
+
+    menuBtn.addEventListener("click", () => setNav(true));
+    document.getElementById("close-nav").addEventListener("click", () => setNav(false, true));
+    document.getElementById("backdrop").addEventListener("click", () => setNav(false, true));
+    // Picking a route (even the current one) closes the drawer.
+    nav.addEventListener("click", (e) => {
+      if (e.target.closest("a")) setNav(false);
+    });
+    phone.addEventListener("change", () => { if (!phone.matches) setNav(false); });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && navOpen() && !document.querySelector("dialog[open]")) {
+        setNav(false, true);
+        return;
+      }
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        if (phone.matches) setNav(true);
+        search.focus();
+      }
+    });
+  }
+
   // ---------- startup ----------
 
   function collect(spec) {
@@ -820,16 +896,10 @@
 
     renderHeader();
     search.addEventListener("input", renderNav);
-    document.addEventListener("keydown", (e) => {
-      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-      if (e.key === "/" && !typing) {
-        e.preventDefault();
-        search.focus();
-      }
-    });
     window.addEventListener("hashchange", route);
     route();
   }
 
+  setupChrome();
   init();
 })();

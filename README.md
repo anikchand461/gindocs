@@ -86,7 +86,8 @@ The docs UI is a small, dependency-free HTML/CSS/JS page (about 50 KB) embedded 
 * **An Authorize dialog** for bearer, basic and API-key auth. Credentials are added to requests and kept until the tab closes.
 * **A Try it console** with typed inputs (dropdowns for enums and booleans), a JSON body pre-filled from the schema example, and JSON validation. Send with the button or ⌘/Ctrl + Enter. It shows the request URL, status, timing, pretty-printed body (with Download), response headers, and a live cURL command.
 * **A server selector** when the spec lists more than one server.
-* Light and dark themes that follow your system setting, and a layout that works on phones.
+* **Light and dark themes.** The page follows your system setting by default, and a toggle in the header lets you override it. The choice is remembered.
+* **Phone layout.** On small screens the route list moves into a slide-out drawer behind a ☰ button, and the header stays pinned to the top.
 
 The spec at `/openapi.json` is standard OpenAPI 3.0.3, so you can also load it into Swagger UI, Postman, Insomnia or a client generator.
 
