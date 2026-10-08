@@ -125,10 +125,13 @@ func TestRouteMetadata(t *testing.T) {
 func TestRoutePanicsOnBadInput(t *testing.T) {
 	d := New(gin.New())
 	for name, f := range map[string]func(){
-		"bad pattern": func() { d.Route("/users") },
-		"query":       func() { d.Route("GET /users").Query("page") },
-		"nil body":    func() { d.Route("POST /users").Body(nil) },
-		"nil path":    func() { d.Route("GET /users/:id").Path(nil) },
+		"bad pattern":     func() { d.Route("/users") },
+		"query":           func() { d.Route("GET /users").Query("page") },
+		"nil body":        func() { d.Route("POST /users").Body(nil) },
+		"nil path":        func() { d.Route("GET /users/:id").Path(nil) },
+		"form not struct": func() { d.Route("POST /upload").Form("file") },
+		"body then form":  func() { d.Route("POST /a").Body(testUser{}).Form(testUser{}) },
+		"form then body":  func() { d.Route("POST /b").Form(testUser{}).Body(testUser{}) },
 	} {
 		func() {
 			defer func() {

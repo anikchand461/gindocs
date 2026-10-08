@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"encoding/json"
+	"mime/multipart"
 	"reflect"
 	"strings"
 	"testing"
@@ -219,5 +220,64 @@ func TestGenerateWithMeta(t *testing.T) {
 		if doc.Components.Schemas[name] == nil {
 			t.Errorf("schema %s missing", name)
 		}
+	}
+}
+
+func TestGenerateForm(t *testing.T) {
+	type Upload struct {
+		Avatar  *multipart.FileHeader   `form:"avatar" binding:"required"`
+		Extras  []*multipart.FileHeader `form:"extras"`
+		Caption string                  `form:"caption" description:"Shown under the image"`
+		Public  bool                    `form:"public"`
+	}
+	type Login struct {
+		Username string `form:"username" binding:"required"`
+		Password string `form:"password" binding:"required"`
+	}
+	routes := []Route{
+		{Method: "POST", Path: "/avatar"},
+		{Method: "POST", Path: "/login"},
+	}
+	doc := Generate(Config{Meta: map[string]*Meta{
+		MetaKey("POST", "/avatar"): {Form: Upload{}},
+		MetaKey("POST", "/login"):  {Form: &Login{}},
+	}}, routes)
+
+	up := doc.Paths["/avatar"]["post"].RequestBody
+	media, ok := up.Content["multipart/form-data"]
+	if !ok || !up.Required {
+		t.Fatalf("file form should be multipart/form-data, got %+v", up.Content)
+	}
+	s := media.Schema
+	if s.Ref != "" || s.Type != "object" {
+		t.Fatalf("form schema should be an inline object, got %+v", s)
+	}
+	p := s.Properties.Get
+	if a := p("avatar"); a.Type != "string" || a.Format != "binary" {
+		t.Errorf("avatar = %+v", a)
+	}
+	if e := p("extras"); e.Type != "array" || e.Items.Format != "binary" {
+		t.Errorf("extras = %+v", e)
+	}
+	if c := p("caption"); c.Type != "string" || c.Description != "Shown under the image" {
+		t.Errorf("caption = %+v", c)
+	}
+	if p("public").Type != "boolean" {
+		t.Errorf("public = %+v", p("public"))
+	}
+	if !reflect.DeepEqual(s.Required, []string{"avatar"}) {
+		t.Errorf("required = %v", s.Required)
+	}
+
+	login := doc.Paths["/login"]["post"].RequestBody
+	ls, ok := login.Content["application/x-www-form-urlencoded"]
+	if !ok {
+		t.Fatalf("form without files should be urlencoded, got %+v", login.Content)
+	}
+	if !reflect.DeepEqual(ls.Schema.Required, []string{"username", "password"}) {
+		t.Errorf("login required = %v", ls.Schema.Required)
+	}
+	if doc.Components != nil {
+		t.Errorf("form structs are inlined, so no components expected: %+v", doc.Components)
 	}
 }

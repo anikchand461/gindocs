@@ -13,7 +13,8 @@ type Meta struct {
 	Summary     string
 	Description string
 	Tags        []string
-	Body        any         // request body value, e.g. CreateUser{}
+	Body        any         // JSON request body value, e.g. CreateUser{}
+	Form        any         // form request body: struct with `form` tags
 	Query       any         // struct with `form` tags
 	Path        any         // struct with `uri` tags
 	Responses   map[int]any // status -> body value (nil for no body)
@@ -124,6 +125,19 @@ func newOperation(gen *schemaGen, path string, params []PathParam, handler strin
 		op.RequestBody = &RequestBody{
 			Required: true,
 			Content:  jsonContent(gen, meta.Body),
+		}
+	}
+	if meta.Form != nil {
+		// Form structs are inlined: their fields are what the UI renders as
+		// inputs, and file fields only make sense inside a form.
+		t := structType(meta.Form)
+		ctype := "application/x-www-form-urlencoded"
+		if hasFile(t) {
+			ctype = "multipart/form-data"
+		}
+		op.RequestBody = &RequestBody{
+			Required: true,
+			Content:  map[string]MediaType{ctype: {Schema: gen.object(t, "form")}},
 		}
 	}
 

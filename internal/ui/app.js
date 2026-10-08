@@ -116,7 +116,19 @@
       return "map<string, " + typeLabel(s.additionalProperties) + ">";
     }
     if (!s.type) return "any";
+    if (s.type === "string" && s.format === "binary") return "file";
     return s.format ? s.type + " (" + s.format + ")" : s.type;
+  }
+
+  const isForm = (ctype) =>
+    ctype.startsWith("multipart/form-data") || ctype === "application/x-www-form-urlencoded";
+
+  // isFile reports whether a schema is a file upload or a list of them.
+  function isFile(s) {
+    const r = resolve(s);
+    if (!r) return false;
+    if (r.type === "array") return isFile(r.items);
+    return r.type === "string" && r.format === "binary";
   }
 
   // typeNode is typeLabel with schema names linked to their page.
@@ -243,7 +255,9 @@
     return Object.entries(content || {}).map(([type, media]) =>
       h("div", { class: "media" },
         h("div", { class: "media-type" }, type),
-        media.schema && tabs([
+        media.schema && isForm(type) && h("div", { class: "tabs" },
+          h("div", { class: "tab-body" }, schemaTree(media.schema))),
+        media.schema && !isForm(type) && tabs([
           { label: "Example", render: () => codeBlock(exampleText(media.schema)) },
           {
             label: "Schema",
@@ -717,7 +731,10 @@
     return el;
   }
 
-  function buildRequest(o, fields, body, ctype) {
+  // buildRequest turns the Try it inputs into a request. body is null, a
+  // JSON body { kind: "json", ctype, el }, or a form body
+  // { kind: "multipart" | "urlencoded", ctype, inputs }.
+  function buildRequest(o, fields, body) {
     let path = o.path;
     const query = new URLSearchParams();
     const headers = {};
@@ -740,10 +757,44 @@
       }
     }
     applyAuth(o, headers, query, cookies);
-    const data = body ? body.trim() : "";
-    if (data) headers["Content-Type"] = ctype;
+
+    let data = "";
+    let entries = [];
+    if (body && body.kind === "json") {
+      data = body.el.value.trim();
+      if (data) headers["Content-Type"] = body.ctype;
+    } else if (body) {
+      // The browser sets the form Content-Type (and multipart boundary) itself.
+      for (const f of body.inputs) {
+        if (f.file) {
+          for (const file of f.el.files) entries.push({ name: f.name, file });
+        } else if (f.el.value !== "") {
+          const values = f.schema.type === "array"
+            ? f.el.value.split(",").map((x) => x.trim()).filter(Boolean)
+            : [f.el.value];
+          values.forEach((value) => entries.push({ name: f.name, value }));
+        }
+      }
+    }
     const qs = query.toString();
-    return { url: state.server + path + (qs ? "?" + qs : ""), headers, data, cookies };
+    return {
+      url: state.server + path + (qs ? "?" + qs : ""),
+      headers, data, cookies, entries,
+      kind: body ? body.kind : null,
+    };
+  }
+
+  function requestBody(r) {
+    if (r.kind === "multipart") {
+      const fd = new FormData();
+      for (const e of r.entries) {
+        if (e.file) fd.append(e.name, e.file, e.file.name);
+        else fd.append(e.name, e.value);
+      }
+      return fd;
+    }
+    if (r.kind === "urlencoded") return new URLSearchParams(r.entries.map((e) => [e.name, e.value]));
+    return r.data || undefined;
   }
 
   function toCurl(o, r) {
@@ -754,6 +805,11 @@
     parts.push(sh(absolute(r.url)));
     for (const [k, v] of Object.entries(r.headers)) parts.push("-H " + sh(k + ": " + v));
     if (r.cookies.length) parts.push("-b " + sh(r.cookies.join("; ")));
+    for (const e of r.entries) {
+      if (r.kind === "urlencoded") parts.push("--data-urlencode " + sh(e.name + "=" + e.value));
+      else if (e.file) parts.push("-F " + sh(e.name + "=@" + e.file.name));
+      else parts.push("--form-string " + sh(e.name + "=" + e.value));
+    }
     if (r.data) parts.push("--data " + sh(r.data));
     return parts.join(parts.length > 3 ? " \\\n  " : " ");
   }
@@ -775,7 +831,27 @@
     let bodyEl = null;
     let bodyErr = null;
     let resetBtn = null;
-    if (content || BODY_METHODS.has(o.method)) {
+    let body = null;
+    if (content && isForm(ctype)) {
+      // One input per form field. File inputs are kept between visits
+      // because a chosen file can't be put back into a new input.
+      form.fieldValues = form.fieldValues || {};
+      form.fileInputs = form.fileInputs || new Map();
+      const s = resolve(schema) || {};
+      const required = new Set(s.required || []);
+      const inputs = Object.entries(s.properties || {}).map(([name, ps]) => {
+        const f = { name, schema: ps, required: required.has(name), file: isFile(ps) };
+        if (f.file) {
+          f.el = form.fileInputs.get(name) ||
+            h("input", { type: "file", name, multiple: ps.type === "array", required: f.required });
+          form.fileInputs.set(name, f.el);
+        } else {
+          f.el = paramControl({ name, schema: ps, required: f.required }, { values: form.fieldValues });
+        }
+        return f;
+      });
+      body = { kind: ctype.startsWith("multipart/") ? "multipart" : "urlencoded", ctype, inputs };
+    } else if (content || BODY_METHODS.has(o.method)) {
       const initial = schema ? exampleText(schema) : "";
       if (form.body == null) form.body = initial;
       bodyEl = h("textarea", {
@@ -786,6 +862,7 @@
         onkeydown: ctype.includes("json") ? jsonKeys : null,
       });
       bodyEl.value = form.body;
+      body = { kind: "json", ctype, el: bodyEl };
       bodyErr = h("div", { class: "field-error", role: "alert" });
       if (schema) {
         resetBtn = h("button", {
@@ -798,7 +875,7 @@
 
     const curl = h("pre", { class: "curl" });
     const send = h("button", { type: "submit", class: "btn" }, "Send request");
-    const build = () => buildRequest(o, fields, bodyEl && bodyEl.value, ctype);
+    const build = () => buildRequest(o, fields, body);
     const refresh = () => { curl.textContent = toCurl(o, build()); };
 
     const submit = async (e) => {
@@ -818,9 +895,7 @@
       send.textContent = "Sending…";
       const t0 = performance.now();
       try {
-        const init = { method: o.method.toUpperCase(), headers: r.headers };
-        if (r.data) init.body = r.data;
-        const res = await fetch(r.url, init);
+        const res = await fetch(r.url, { method: o.method.toUpperCase(), headers: r.headers, body: requestBody(r) });
         const text = await res.text();
         showResult(out, r, res, text, performance.now() - t0);
       } catch (err) {
@@ -846,6 +921,15 @@
           p.required && h("span", { class: "req" }, "*"),
           h("small", null, p.in + " · " + typeLabel(p.schema))),
         el))),
+    body && body.kind !== "json" && h("div", { class: "field" },
+      h("span", { class: "field-name" }, "Body", h("small", null, body.ctype)),
+      h("div", { class: "fields form-body" }, body.inputs.map((f) =>
+        h("label", { class: "field" },
+          h("span", { class: "field-name" }, f.name,
+            f.required && h("span", { class: "req" }, "*"),
+            h("small", null, typeLabel(f.schema))),
+          f.el,
+          f.schema.description && h("span", { class: "field-help" }, f.schema.description))))),
     bodyEl && h("div", { class: "field" },
       h("div", { class: "field-row" },
         h("span", { class: "field-name" }, "Body", h("small", null, ctype + (content ? "" : " · optional"))),

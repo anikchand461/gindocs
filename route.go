@@ -64,12 +64,37 @@ func (r *Route) Tags(tags ...string) *Route {
 
 // Body documents the JSON request body using the type of v, e.g.
 // CreateUser{}. Field names follow `json` tags; `binding:"required"` marks
-// required fields.
+// required fields. A route has either Body or Form, not both.
 func (r *Route) Body(v any) *Route {
 	if v == nil {
 		panic("gindocs: Body needs a value such as CreateUser{}")
 	}
+	if r.m.Form != nil {
+		panic("gindocs: a route can document Body or Form, not both")
+	}
 	r.m.Body = v
+	return r
+}
+
+// Form documents a form request body using a struct with `form` tags, the
+// same struct you would pass to c.ShouldBind. Fields of type
+// *multipart.FileHeader or []*multipart.FileHeader become file uploads and
+// make the body multipart/form-data; without them it is
+// application/x-www-form-urlencoded. A route has either Body or Form, not
+// both.
+//
+//	type UploadAvatar struct {
+//		Avatar  *multipart.FileHeader `form:"avatar" binding:"required"`
+//		Caption string                `form:"caption"`
+//	}
+//
+//	docs.Route("POST /users/:id/avatar").Form(UploadAvatar{})
+func (r *Route) Form(v any) *Route {
+	mustStruct("Form", v)
+	if r.m.Body != nil {
+		panic("gindocs: a route can document Body or Form, not both")
+	}
+	r.m.Form = v
 	return r
 }
 

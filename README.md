@@ -81,10 +81,10 @@ The docs UI is a small, dependency-free HTML/CSS/JS page (about 50 KB) embedded 
 * **A sidebar** with routes grouped by tag, each with its summary, plus a **Schemas** section. Press `/` to filter.
 * **Each endpoint** with its method, path, summary, description, tags, operationId, deprecation, and whether it needs auth.
 * **Parameters** with their type, location, required flag and constraints (enum, min/max, length, default, example).
-* **Request body and responses** in Example and Schema tabs. Schemas render as an expandable tree, and their types link to their own pages.
+* **Request body and responses** in Example and Schema tabs. Schemas render as an expandable tree, and their types link to their own pages. Form bodies are listed field by field, with file fields marked `file`.
 * **A schema page** for each model, showing which endpoints use it.
 * **An Authorize dialog** for bearer, basic and API-key auth. Credentials are added to requests and kept until the tab closes.
-* **A Try it console** with typed inputs (dropdowns for enums and booleans), a JSON body pre-filled from the schema example, and JSON validation. Send with the button or ⌘/Ctrl + Enter. It shows the request URL, status, timing, pretty-printed body (with Download), response headers, and a live cURL command.
+* **A Try it console** with typed inputs (dropdowns for enums and booleans), a JSON body pre-filled from the schema example, and JSON validation. Form bodies get one input per field, with file pickers for uploads (multiple files where the field is a list), and are sent as `multipart/form-data` or `application/x-www-form-urlencoded`. Send with the button or ⌘/Ctrl + Enter. It shows the request URL, status, timing, pretty-printed body (with Download), response headers, and a live cURL command.
 * **A server selector** when the spec lists more than one server.
 * **Light and dark themes.** The page follows your system setting by default, and a toggle in the header lets you override it. The choice is remembered.
 * **Phone layout.** On small screens the route list moves into a slide-out drawer behind a ☰ button, and the header stays pinned to the top.
@@ -132,16 +132,39 @@ docs.Route("DELETE /api/v1/users/:id").
 docs.Serve("/docs")
 ```
 
+### Forms and file uploads
+
+Use `Form` with the struct you pass to `c.ShouldBind`. File fields use Gin's `*multipart.FileHeader`:
+
+```go
+type AvatarForm struct {
+	Avatar  *multipart.FileHeader   `form:"avatar" binding:"required"`
+	Extras  []*multipart.FileHeader `form:"extras"` // several files
+	Caption string                  `form:"caption" binding:"max=80"`
+}
+
+type LoginForm struct {
+	Username string `form:"username" binding:"required"`
+	Password string `form:"password" binding:"required"`
+}
+
+docs.Route("POST /api/v1/users/:id/avatar").Form(AvatarForm{}) // multipart/form-data
+docs.Route("POST /login").Form(LoginForm{})                     // application/x-www-form-urlencoded
+```
+
+A form with at least one file field is documented as `multipart/form-data`. Without file fields it's `application/x-www-form-urlencoded`. In Try it, the first route gets file pickers and the second plain text inputs, and the cURL preview uses `-F` / `--form-string` or `--data-urlencode` to match.
+
 | `Route` method            | Effect                                                         |
 | ------------------------- | -------------------------------------------------------------- |
 | `Summary`, `Description`  | Override the summary from the handler name, and add Markdown-lite text |
 | `Tags(...)`               | Override the tag from the path                                 |
 | `Body(v)`                 | JSON request body schema from `v`'s type                       |
+| `Form(v)`                 | Form body from a struct with `form` tags; file fields make it multipart |
 | `Query(v)`, `Path(v)`     | Query parameters / typed path parameters from a struct         |
 | `Response(status, v)`     | A response with its JSON schema (`nil` for no body)            |
 | `Deprecated()`, `Public()`, `Hide()` | Mark deprecated, exempt from auth, or leave out of the docs |
 
-Patterns accept Gin (`:id`) or OpenAPI (`{id}`) syntax. `Route` panics on a malformed pattern or a non-struct `Query`/`Path`, so mistakes show up at startup.
+Patterns accept Gin (`:id`) or OpenAPI (`{id}`) syntax. `Route` panics on a malformed pattern, a non-struct `Query`/`Path`/`Form`, or a route given both `Body` and `Form`, so mistakes show up at startup.
 
 ### How structs become schemas
 
@@ -156,7 +179,7 @@ Named structs become reusable schemas under `components/schemas` and are referen
 | `description:"..."`                   | Field description                                           |
 | `example:"..."`                       | Example value, parsed to the field's JSON type               |
 
-`time.Time` becomes a `date-time` string, `[]byte` a base64 string, maps become `additionalProperties`, and interfaces accept any value.
+`time.Time` becomes a `date-time` string, `*multipart.FileHeader` a file (`string`/`binary`), `[]byte` a base64 string, maps become `additionalProperties`, and interfaces accept any value.
 
 ### Other options
 
@@ -172,7 +195,7 @@ Routes are read each time the spec is requested, so the docs also include routes
 ## Known limitations
 
 * **Types must be declared.** Request and response schemas come from `Route(...)`. Gin handlers don't expose them, so they aren't inferred. A `Route` pattern that matches no registered route is silently ignored.
-* **JSON bodies only.** Form, multipart and file-upload bodies aren't described yet.
+* **One body type per route.** A route documents either a JSON `Body` or a `Form`, not both, even if the handler accepts either through `c.ShouldBind`.
 * **Auth applies globally.** `BearerAuth`/`BasicAuth`/`APIKey` cover every route except `Public()` ones. There's no per-route choice between schemes and no OAuth2 flows.
 * **Catch-all wildcards.** OpenAPI path parameters can't contain `/`, so `/files/*filepath` becomes a single `{filepath}` parameter. The built-in docs UI sends slashes as typed, so `docs/a.txt` reaches Gin as `/docs/a.txt`. Other OpenAPI tools may encode them as `%2F`, which Gin still decodes as long as `UseRawPath` is off (the default).
 * **Absolute URLs.** The docs page loads its assets and spec from absolute paths, so serving it behind a reverse proxy that strips a path prefix won't work yet.
@@ -182,7 +205,7 @@ Routes are read each time the spec is requested, so the docs also include routes
 ```bash
 go test ./...
 go run ./examples/basic   # zero config:          http://localhost:8080/docs
-go run ./examples/full    # types + bearer auth:  http://localhost:8081/docs (token: demo-token)
+go run ./examples/full    # types, forms, uploads, bearer auth: http://localhost:8081/docs (token: demo-token)
 ```
 
 ### Layout
@@ -193,7 +216,7 @@ route.go                 Optional per-route documentation (Docs.Route)
 internal/openapi/        OpenAPI types, path conversion, naming, struct → schema reflection, generation
 internal/ui/             Embedded docs page (index.html, app.css, app.js)
 examples/basic/          Zero-config example
-examples/full/           Typed bodies, query/path structs, responses and bearer auth
+examples/full/           Typed bodies, forms and file uploads, query/path structs, responses and bearer auth
 ```
 
 ### Working on the UI

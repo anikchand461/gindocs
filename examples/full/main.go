@@ -4,10 +4,11 @@
 //	go run ./examples/full
 //
 // Then open http://localhost:8081/docs, click Authorize and use the token
-// "demo-token".
+// "demo-token" (or get it from POST /login with password "demo").
 package main
 
 import (
+	"mime/multipart"
 	"net/http"
 	"slices"
 	"strings"
@@ -47,6 +48,31 @@ type UserList struct {
 	Total int    `json:"total"`
 }
 
+// LoginForm is posted as application/x-www-form-urlencoded.
+type LoginForm struct {
+	Username string `form:"username" binding:"required" example:"ada"`
+	Password string `form:"password" binding:"required" description:"Use demo"`
+}
+
+type Token struct {
+	Token string `json:"token" example:"demo-token"`
+}
+
+// AvatarForm is posted as multipart/form-data because it has file fields.
+type AvatarForm struct {
+	Avatar  *multipart.FileHeader   `form:"avatar" binding:"required" description:"PNG or JPEG image"`
+	Extras  []*multipart.FileHeader `form:"extras" description:"Optional extra images"`
+	Caption string                  `form:"caption" binding:"max=80"`
+}
+
+type AvatarInfo struct {
+	UserID   int      `json:"userId"`
+	Filename string   `json:"filename"`
+	Size     int64    `json:"size"`
+	Extras   []string `json:"extras"`
+	Caption  string   `json:"caption"`
+}
+
 type APIError struct {
 	Error string `json:"error" example:"something went wrong"`
 }
@@ -63,12 +89,14 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/health", Health)
+	r.POST("/login", Login)
 
 	api := r.Group("/api/v1", RequireToken)
 	api.GET("/users", ListUsers)
 	api.POST("/users", CreateUser)
 	api.GET("/users/:id", GetUser)
 	api.DELETE("/users/:id", DeleteUser)
+	api.POST("/users/:id/avatar", UploadAvatar)
 	api.GET("/files/*path", GetFile) // undocumented on purpose: zero config
 
 	docs := gindocs.New(r)
@@ -77,6 +105,17 @@ func main() {
 	docs.BearerAuth()
 
 	docs.Route("GET /health").Public()
+	docs.Route("POST /login").
+		Public().
+		Summary("Log in").
+		Form(LoginForm{}).
+		Response(200, Token{}).
+		Response(401, APIError{})
+	docs.Route("POST /api/v1/users/:id/avatar").
+		Path(UserURI{}).
+		Form(AvatarForm{}).
+		Response(200, AvatarInfo{}).
+		Response(400, APIError{})
 	docs.Route("GET /api/v1/users").
 		Query(ListUsersQuery{}).
 		Response(200, UserList{}).
@@ -109,6 +148,37 @@ func RequireToken(c *gin.Context) {
 		return
 	}
 	c.Next()
+}
+
+func Login(c *gin.Context) {
+	var f LoginForm
+	if err := c.ShouldBind(&f); err != nil {
+		c.JSON(http.StatusBadRequest, APIError{Error: err.Error()})
+		return
+	}
+	if f.Password != "demo" {
+		c.JSON(http.StatusUnauthorized, APIError{Error: "wrong username or password"})
+		return
+	}
+	c.JSON(http.StatusOK, Token{Token: "demo-token"})
+}
+
+func UploadAvatar(c *gin.Context) {
+	var uri UserURI
+	var f AvatarForm
+	if err := c.ShouldBindUri(&uri); err != nil {
+		c.JSON(http.StatusBadRequest, APIError{Error: err.Error()})
+		return
+	}
+	if err := c.ShouldBind(&f); err != nil {
+		c.JSON(http.StatusBadRequest, APIError{Error: err.Error()})
+		return
+	}
+	info := AvatarInfo{UserID: uri.ID, Filename: f.Avatar.Filename, Size: f.Avatar.Size, Extras: []string{}, Caption: f.Caption}
+	for _, x := range f.Extras {
+		info.Extras = append(info.Extras, x.Filename)
+	}
+	c.JSON(http.StatusOK, info)
 }
 
 func Health(c *gin.Context) {

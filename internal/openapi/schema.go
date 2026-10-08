@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"encoding/json"
+	"mime/multipart"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 var (
 	timeType       = reflect.TypeFor[time.Time]()
 	rawMessageType = reflect.TypeFor[json.RawMessage]()
+	fileType       = reflect.TypeFor[multipart.FileHeader]()
 )
 
 // schemaGen converts Go types to schemas. Named struct types are stored once
@@ -40,6 +42,8 @@ func (g *schemaGen) For(t reflect.Type) *Schema {
 		return &Schema{Type: "string", Format: "date-time"}
 	case rawMessageType:
 		return &Schema{}
+	case fileType:
+		return &Schema{Type: "string", Format: "binary"}
 	}
 
 	switch t.Kind() {
@@ -66,13 +70,13 @@ func (g *schemaGen) For(t reflect.Type) *Schema {
 		return &Schema{Type: "object", AdditionalProperties: g.For(t.Elem())}
 	case reflect.Struct:
 		if t.Name() == "" {
-			return g.object(t)
+			return g.object(t, "json")
 		}
 		name, ok := g.names[t]
 		if !ok {
 			name = g.nameFor(t)
 			g.names[t] = name
-			g.defs[name] = g.object(t)
+			g.defs[name] = g.object(t, "json")
 		}
 		return &Schema{Ref: "#/components/schemas/" + name}
 	default:
@@ -81,9 +85,11 @@ func (g *schemaGen) For(t reflect.Type) *Schema {
 	}
 }
 
-func (g *schemaGen) object(t reflect.Type) *Schema {
+// object builds an inline object schema from t's fields, named by tagKey
+// ("json" for JSON bodies, "form" for form bodies).
+func (g *schemaGen) object(t reflect.Type, tagKey string) *Schema {
 	s := &Schema{Type: "object", Properties: Properties{}}
-	for _, f := range structFields(t, "json") {
+	for _, f := range structFields(t, tagKey) {
 		ps := g.For(f.Type)
 		applyTags(ps, f.Tag)
 		s.Properties = append(s.Properties, Property{Name: f.Name, Schema: ps})
@@ -92,6 +98,21 @@ func (g *schemaGen) object(t reflect.Type) *Schema {
 		}
 	}
 	return s
+}
+
+// hasFile reports whether a form struct has a file field
+// (*multipart.FileHeader or a slice of them).
+func hasFile(t reflect.Type) bool {
+	for _, f := range structFields(t, "form") {
+		ft := f.Type
+		for ft.Kind() == reflect.Pointer || ft.Kind() == reflect.Slice || ft.Kind() == reflect.Array {
+			ft = ft.Elem()
+		}
+		if ft == fileType {
+			return true
+		}
+	}
+	return false
 }
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_]+`)
